@@ -10,7 +10,7 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/aquilax/mbox-tools/iterator"
+	"github.com/aquilax/mbox-tools/mbox"
 	"github.com/spf13/afero"
 	"github.com/urfave/cli/v2"
 )
@@ -33,59 +33,72 @@ func newSplitCommand(fSys afero.Fs) *cli.Command {
 				Usage:    "Possible options: year",
 				Required: true,
 			},
+			&cli.BoolFlag{
+				Name:    "overwrite",
+				Aliases: []string{"o"},
+				Usage:   "Overwrite target files",
+				Value:   false,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			target := c.String("directory")
+			overwrite := c.Bool("overwrite")
+
 			if exists, err := afero.DirExists(fSys, target); err != nil {
 				return err
 			} else if !exists {
 				return fmt.Errorf("target directory %s does not exist", target)
 			}
-			return withMBox(fSys, c.Args().Get(0), func(mb io.Reader) error {
-				writers := make(map[string]io.WriteCloser)
-
-				err := iterator.ReadMessages(mb, func(b []byte) (bool, error) {
-					msg, err := mail.ReadMessage(bufio.NewReader(bytes.NewBuffer(b)))
-					if err != nil {
-						return true, err
-					}
-					time, err := msg.Header.Date()
-					if err != nil {
-						return false, nil
-					}
-					y := time.Year()
-					bucketName := strconv.Itoa(y)
-					if _, found := writers[bucketName]; !found {
-						targetFile := path.Join(target, bucketName+".mbox")
-						if exists, err := afero.Exists(fSys, targetFile); err != nil {
-							return true, err
-						} else if exists {
-							return true, fmt.Errorf("file %s already exists", targetFile)
-						}
-						f, err := os.Create(targetFile)
+			for _, sourceFile := range c.Args().Slice() {
+				err := withMBox(fSys, sourceFile, func(mb io.Reader) error {
+					writers := make(map[string]io.WriteCloser)
+					index := 0
+					err := mbox.ReadMessages(mb, func(b []byte) (bool, error) {
+						msg, err := mail.ReadMessage(bufio.NewReader(bytes.NewBuffer(b)))
 						if err != nil {
+							return true, fmt.Errorf("message # %d: %v", index, err)
+						}
+						time, err := msg.Header.Date()
+						if err != nil {
+							println(string(b))
+							return true, fmt.Errorf("message # %d: %v", index, err)
+						}
+						y := time.Year()
+						bucketName := strconv.Itoa(y)
+						if _, found := writers[bucketName]; !found {
+							targetFile := path.Join(target, bucketName+".mbox")
+							if !overwrite {
+								if exists, err := afero.Exists(fSys, targetFile); err != nil {
+									return true, err
+								} else if exists {
+									return true, fmt.Errorf("file %s already exists", targetFile)
+								}
+							}
+							f, err := os.Create(targetFile)
+							if err != nil {
+								return true, err
+							}
+							writers[bucketName] = f
+						}
+						f := writers[bucketName]
+						if _, err := mbox.WriteMessage(f, b); err != nil {
 							return true, err
 						}
-						writers[bucketName] = f
+						index++
+						return false, nil
+					})
+
+					for _, f := range writers {
+						f.Close()
 					}
-					f := writers[bucketName]
-					_, err = f.Write(b)
-					if err != nil {
-						return false, err
-					}
-					_, err = f.Write([]byte{'\n'})
-					if err != nil {
-						return false, err
-					}
-					return false, nil
+
+					return err
 				})
-
-				for _, f := range writers {
-					f.Close()
+				if err != nil {
+					return fmt.Errorf("file: %s: %v", sourceFile, err)
 				}
-
-				return err
-			})
+			}
+			return nil
 		},
 	}
 }

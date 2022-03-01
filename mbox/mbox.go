@@ -1,4 +1,4 @@
-package iterator
+package mbox
 
 import (
 	"bufio"
@@ -66,7 +66,22 @@ func ReadMessages(r io.Reader, cb OnMessage) error {
 				}
 			}
 			messageBuffer.WriteByte(sb)
+		} else {
+			// ignore
+			b.ReadByte()
 		}
 	}
 	return nil
+}
+
+func WriteMessage(f io.Writer, b []byte) (int, error) {
+	written := 0
+	if written, err := f.Write(b); err != nil {
+		return written, err
+	}
+	if i, err := f.Write([]byte{'\n'}); err != nil {
+		return written + i, err
+	} else {
+		return written + i, nil
+	}
 }
