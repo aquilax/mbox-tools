@@ -33,6 +33,10 @@ func newSplitCommand(fSys afero.Fs) *cli.Command {
 				Usage:    "Possible options: year",
 				Required: true,
 			},
+			&cli.StringFlag{
+				Name:  "errors",
+				Usage: "Target file for messages that can't be parsed",
+			},
 			&cli.BoolFlag{
 				Name:    "overwrite",
 				Aliases: []string{"o"},
@@ -42,7 +46,9 @@ func newSplitCommand(fSys afero.Fs) *cli.Command {
 		},
 		Action: func(c *cli.Context) error {
 			target := c.String("directory")
+			splitBy := c.String("splitBy")
 			overwrite := c.Bool("overwrite")
+			errorsFile := c.String("errors")
 
 			if exists, err := afero.DirExists(fSys, target); err != nil {
 				return err
@@ -54,17 +60,12 @@ func newSplitCommand(fSys afero.Fs) *cli.Command {
 					writers := make(map[string]io.WriteCloser)
 					index := 0
 					err := mbox.ReadMessages(mb, func(b []byte) (bool, error) {
-						msg, err := mail.ReadMessage(bufio.NewReader(bytes.NewBuffer(b)))
+						r := bufio.NewReader(bytes.NewBuffer(b))
+
+						bucketName, err := getBucketName(r, splitBy, errorsFile)
 						if err != nil {
 							return true, fmt.Errorf("message # %d: %v", index, err)
 						}
-						time, err := msg.Header.Date()
-						if err != nil {
-							println(string(b))
-							return true, fmt.Errorf("message # %d: %v", index, err)
-						}
-						y := time.Year()
-						bucketName := strconv.Itoa(y)
 						if _, found := writers[bucketName]; !found {
 							targetFile := path.Join(target, bucketName+".mbox")
 							if !overwrite {
@@ -101,4 +102,26 @@ func newSplitCommand(fSys afero.Fs) *cli.Command {
 			return nil
 		},
 	}
+}
+
+func getBucketName(r io.Reader, splitBy string, errorsFile string) (string, error) {
+	msg, err := mail.ReadMessage(r)
+	if err != nil {
+		if errorsFile != "" {
+			return errorsFile, nil
+		} else {
+			return "", err
+		}
+	}
+
+	time, err := msg.Header.Date()
+	if err != nil {
+		if errorsFile != "" {
+			return errorsFile, nil
+		} else {
+			return "", err
+		}
+	}
+	y := time.Year()
+	return strconv.Itoa(y), nil
 }
