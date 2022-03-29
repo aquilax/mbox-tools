@@ -23,6 +23,7 @@ func GetApp(fSys afero.Fs) *cli.App {
 
 	a.Commands = []*cli.Command{
 		newSplitCommand(fSys),
+		newStatsCommand(fSys),
 	}
 	return a
 }
