@@ -7,26 +7,22 @@ on:
     branches: [ master ]
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [github.com/aquilax/mbox-tools/lib/mbox, github.com/aquilax/mbox-tools/cmd/mbox-tools]
+
     steps:
     - uses: actions/checkout@v3
 
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
-        go-version: 1.17
+        go-version: 1.18
 
-    - name: Build lib
-      run: cd lib/mbox && go build -v ./...
+    - name: Build ${{ matrix.package }}
+      run: go build -v ${{ matrix.package }}
 
-    - name: Test lib
-      run: cd lib/mbox && go test -v ./...
-
-    - name: Build cmd
-      run: cd cmd/mbox-tools/ && go build -v ./...
-
-    - name: Test cmd
-      run: cd cmd/mbox-tools/ && go test -v ./...
-
+    - name: Test ${{ matrix.package }}
+      run: go test -v ${{ matrix.package }}
