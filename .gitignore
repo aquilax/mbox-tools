@@ -4,7 +4,7 @@
 *.dll
 *.so
 *.dylib
-mbox-tools
+cmd/mbox-tools/mbox-tools
 
 # Test binary, built with `go test -c`
 *.test
