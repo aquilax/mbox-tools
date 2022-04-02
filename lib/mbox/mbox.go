@@ -1,3 +1,4 @@
+// Package mbox provides functions for reading and writing messages stored in mbox files
 package mbox
 
 import (
@@ -11,8 +12,10 @@ const (
 	inMessage    = 1
 )
 
+// OnMessage is a callback function called on every message.
 type OnMessage = func(b []byte) (bool, error)
 
+// ReadMessages reads messages from r and calls cb for each message
 func ReadMessages(r io.Reader, cb OnMessage) error {
 	header := []byte("From ")
 	b := bufio.NewReader(r)
@@ -74,6 +77,7 @@ func ReadMessages(r io.Reader, cb OnMessage) error {
 	return nil
 }
 
+// WriteMessage writes to f the message content
 func WriteMessage(f io.Writer, b []byte) (int, error) {
 	written := 0
 	if written, err := f.Write(b); err != nil {

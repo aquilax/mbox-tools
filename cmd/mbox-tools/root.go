@@ -17,6 +17,7 @@ var (
 func getApp(fSys afero.Fs) *cli.App {
 	a := &cli.App{
 		Name:        "mbox-tools",
+		Usage:       "Tools for working with mbox files",
 		Description: "Tools for working with mbox files",
 		Version:     fmt.Sprintf("%v, commit %v, built at %v", version, commit, date),
 	}
@@ -25,6 +26,7 @@ func getApp(fSys afero.Fs) *cli.App {
 		newSplitCommand(fSys),
 		newStatsCommand(fSys),
 		newMergeCommand(fSys),
+		newGenCommand(a),
 	}
 	return a
 }
