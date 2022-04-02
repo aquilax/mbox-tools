@@ -111,7 +111,6 @@ func getBucketName(r io.Reader, splitBy string, errorsFile string) (string, erro
 			return errorsFile, nil
 		}
 		return "", err
-
 	}
 
 	time, err := msg.Header.Date()

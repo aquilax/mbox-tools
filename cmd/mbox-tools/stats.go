@@ -15,9 +15,8 @@ import (
 
 func newStatsCommand(fSys afero.Fs) *cli.Command {
 	return &cli.Command{
-		Name:      "stats",
-		Usage:     "Mbox file statistics",
-		ArgsUsage: "[filename]...",
+		Name:  "stats",
+		Usage: "Mbox file statistics",
 		Subcommands: []*cli.Command{
 			newStatsSenderCommand(fSys),
 			newStatsSenderSizeCommand(fSys),
